@@ -18,6 +18,8 @@ from input_handlers.url_handler import URLHandler
 from preprocessing.preprocessing_pipeline import PreprocessingPipeline
 from data_manager import DataManager
 
+
+
 class FakeNewsDetector:
     """Main class for fake news detection system"""
     
