@@ -13,6 +13,8 @@ class TextCleaner:
     
     def __init__(self):
         """Initialize text cleaner with NLTK and spaCy"""
+        from utils.logger import get_logger
+        self.logger = get_logger(__name__)
         self.nltk_available = False
         self.spacy_available = False
         self.spacy_model = None
@@ -55,64 +57,61 @@ class TextCleaner:
             import nltk
             self.nltk_available = True
             
-            # Download required NLTK data
+            # Download required NLTK data with better error handling
+            required_data = [
+                ('tokenizers/punkt', 'punkt'),
+                ('corpora/stopwords', 'stopwords'),
+                ('taggers/averaged_perceptron_tagger', 'averaged_perceptron_tagger'),
+                ('tokenizers/punkt_tab', 'punkt_tab'),
+                ('corpora/wordnet', 'wordnet')
+            ]
+            
+            for data_path, package_name in required_data:
+                try:
+                    nltk.data.find(data_path)
+                except LookupError:
+                    try:
+                        self.logger.info(f"Downloading NLTK {package_name}...")
+                        nltk.download(package_name, quiet=True)
+                    except Exception as download_error:
+                        self.logger.warning(f"Failed to download {package_name}: {download_error}")
+                        continue
+            
+            # Import NLTK components with error handling
             try:
-                nltk.data.find('tokenizers/punkt')
-            except LookupError:
-                print("Downloading NLTK punkt tokenizer...")
-                nltk.download('punkt', quiet=True)
-            
-            try:
-                nltk.data.find('corpora/stopwords')
-            except LookupError:
-                print("Downloading NLTK stopwords...")
-                nltk.download('stopwords', quiet=True)
-            
-            try:
-                nltk.data.find('taggers/averaged_perceptron_tagger')
-            except LookupError:
-                print("Downloading NLTK POS tagger...")
-                nltk.download('averaged_perceptron_tagger', quiet=True)
-            
-            try:
-                nltk.data.find('tokenizers/punkt_tab')
-            except LookupError:
-                print("Downloading NLTK punkt_tab...")
-                nltk.download('punkt_tab', quiet=True)
-            
-            # Import NLTK components
-            from nltk.tokenize import word_tokenize, sent_tokenize
-            from nltk.corpus import stopwords
-            from nltk.tag import pos_tag
-            from nltk.stem import WordNetLemmatizer, PorterStemmer
-            
-            self.word_tokenize = word_tokenize
-            self.sent_tokenize = sent_tokenize
-            self.pos_tag = pos_tag
-            self.stopwords = set(stopwords.words('english'))
-            self.lemmatizer = WordNetLemmatizer()
-            self.stemmer = PorterStemmer()
-            
-            print("✅ NLTK initialized successfully")
+                from nltk.tokenize import word_tokenize, sent_tokenize
+                from nltk.corpus import stopwords
+                from nltk.tag import pos_tag
+                from nltk.stem import WordNetLemmatizer, PorterStemmer
+                
+                self.word_tokenize = word_tokenize
+                self.sent_tokenize = sent_tokenize
+                self.pos_tag = pos_tag
+                self.stopwords = set(stopwords.words('english'))
+                self.lemmatizer = WordNetLemmatizer()
+                self.stemmer = PorterStemmer()
+                
+                self.logger.info("NLTK initialized successfully")
+                
+            except ImportError as import_error:
+                self.logger.warning(f"Failed to import NLTK components: {import_error}")
+                self._set_nltk_fallbacks()
             
         except ImportError:
-            print("⚠️ NLTK not available. Install with: pip install nltk")
-            # Set fallback methods
-            self.word_tokenize = None
-            self.sent_tokenize = None
-            self.pos_tag = None
-            self.stopwords = self.fallback_stopwords
-            self.lemmatizer = None
-            self.stemmer = None
+            self.logger.warning("NLTK not available. Install with: pip install nltk")
+            self._set_nltk_fallbacks()
         except Exception as e:
-            print(f"⚠️ NLTK initialization error: {e}")
-            # Set fallback methods
-            self.word_tokenize = None
-            self.sent_tokenize = None
-            self.pos_tag = None
-            self.stopwords = self.fallback_stopwords
-            self.lemmatizer = None
-            self.stemmer = None
+            self.logger.warning(f"NLTK initialization error: {e}")
+            self._set_nltk_fallbacks()
+    
+    def _set_nltk_fallbacks(self):
+        """Set fallback methods when NLTK is not available"""
+        self.word_tokenize = None
+        self.sent_tokenize = None
+        self.pos_tag = None
+        self.stopwords = self.fallback_stopwords
+        self.lemmatizer = None
+        self.stemmer = None
     
     def _init_spacy(self):
         """Initialize spaCy components"""
@@ -123,16 +122,16 @@ class TextCleaner:
             # Try to load English model
             try:
                 self.spacy_model = spacy.load("en_core_web_sm")
-                print("✅ spaCy English model loaded successfully")
+                self.logger.info("spaCy English model loaded successfully")
             except OSError:
-                print("⚠️ spaCy English model not found. Install with: python -m spacy download en_core_web_sm")
-                print("   Using basic spaCy without model...")
+                self.logger.warning("spaCy English model not found. Install with: python -m spacy download en_core_web_sm")
+                self.logger.info("Using basic spaCy without model...")
                 self.spacy_model = spacy.blank("en")
             
         except ImportError:
-            print("⚠️ spaCy not available. Install with: pip install spacy")
+            self.logger.warning("spaCy not available. Install with: pip install spacy")
         except Exception as e:
-            print(f"⚠️ spaCy initialization error: {e}")
+            self.logger.warning(f"spaCy initialization error: {e}")
     
     def clean_text(self, text: str, options: Dict[str, bool] = None) -> Dict[str, Any]:
         """

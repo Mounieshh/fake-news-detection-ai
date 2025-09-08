@@ -21,6 +21,8 @@ class PreprocessingPipeline:
         Args:
             config (dict): Configuration options for preprocessing
         """
+        from utils.logger import get_logger
+        self.logger = get_logger(__name__)
         self.config = config or self._get_default_config()
         
         # Initialize components
@@ -28,10 +30,10 @@ class PreprocessingPipeline:
         self.feature_extractor = FeatureExtractor()
         self.data_validator = DataValidator()
         
-        print("🔧 Preprocessing Pipeline Initialized!")
-        print(f"   - Text Cleaner: {'✅' if self.text_cleaner.nltk_available or self.text_cleaner.spacy_available else '⚠️'}")
-        print(f"   - Feature Extractor: {'✅' if self.feature_extractor.nltk_available or self.feature_extractor.spacy_available else '⚠️'}")
-        print(f"   - Data Validator: ✅")
+        self.logger.info("Preprocessing Pipeline Initialized!")
+        self.logger.info(f"   - Text Cleaner: {'OK' if self.text_cleaner.nltk_available or self.text_cleaner.spacy_available else 'DEGRADED'}")
+        self.logger.info(f"   - Feature Extractor: {'OK' if self.feature_extractor.nltk_available or self.feature_extractor.spacy_available else 'DEGRADED'}")
+        self.logger.info("   - Data Validator: OK")
     
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration"""
@@ -101,7 +103,7 @@ class PreprocessingPipeline:
         try:
             # Step 1: Validation
             if self.config['validation']['enabled']:
-                print("🔍 Step 1: Validating input...")
+                self.logger.info("Step 1: Validating input...")
                 validation_result = self._validate_input(text, input_type)
                 pipeline_result['validation'] = validation_result
                 pipeline_result['pipeline_steps'].append('validation')
@@ -112,19 +114,19 @@ class PreprocessingPipeline:
                     return pipeline_result
             
             # Step 2: Text Cleaning
-            print("🧹 Step 2: Cleaning text...")
+            self.logger.info("Step 2: Cleaning text...")
             cleaning_result = self._clean_text(text)
             pipeline_result['cleaning'] = cleaning_result
             pipeline_result['pipeline_steps'].append('cleaning')
             
             # Step 3: Feature Extraction
-            print("🔍 Step 3: Extracting features...")
+            self.logger.info("Step 3: Extracting features...")
             feature_result = self._extract_features(text, cleaning_result.get('cleaned_text', ''))
             pipeline_result['features'] = feature_result
             pipeline_result['pipeline_steps'].append('feature_extraction')
             
             # Step 4: Prepare final output
-            print("📦 Step 4: Preparing output...")
+            self.logger.info("Step 4: Preparing output...")
             final_data = self._prepare_final_output(text, cleaning_result, feature_result, validation_result)
             pipeline_result['data'] = final_data
             pipeline_result['pipeline_steps'].append('output_preparation')
@@ -132,12 +134,12 @@ class PreprocessingPipeline:
             # Add summary
             pipeline_result['summary'] = self._generate_summary(pipeline_result)
             
-            print("✅ Preprocessing completed successfully!")
+            self.logger.info("Preprocessing completed successfully!")
             
         except Exception as e:
             pipeline_result['status'] = 'error'
             pipeline_result['error'] = str(e)
-            print(f"❌ Preprocessing failed: {str(e)}")
+            self.logger.exception(f"Preprocessing failed: {str(e)}")
         
         return pipeline_result
     
@@ -363,13 +365,13 @@ class PreprocessingPipeline:
         """
         results = []
         
-        print(f"🔄 Processing {len(inputs)} inputs in batch...")
+        self.logger.info(f"Processing {len(inputs)} inputs in batch...")
         
         for i, input_data in enumerate(inputs):
             input_type = input_data.get('type', 'text')
             data = input_data.get('data', '')
             
-            print(f"   Processing input {i+1}/{len(inputs)} ({input_type})...")
+            self.logger.info(f"   Processing input {i+1}/{len(inputs)} ({input_type})...")
             
             if input_type == 'text':
                 result = self.process_text(data, input_type)
@@ -385,7 +387,7 @@ class PreprocessingPipeline:
             
             results.append(result)
         
-        print(f"✅ Batch processing completed: {len(results)} results")
+        self.logger.info(f"Batch processing completed: {len(results)} results")
         return results
     
     def _read_csv_file(self, file_path: str) -> str:

@@ -25,14 +25,16 @@ class FakeNewsDetector:
     
     def __init__(self, data_dir: str = "data"):
         """Initialize the fake news detection system"""
+        from utils.logger import get_logger
+        self.logger = get_logger(__name__)
         self.text_handler = TextHandler()
         self.image_handler = ImageHandler()
         self.url_handler = URLHandler()
         self.preprocessing_pipeline = PreprocessingPipeline()
         self.data_manager = DataManager(data_dir)
         
-        print("🚀 Fake News Detection System Initialized!")
-        print("=" * 50)
+        self.logger.info("Fake News Detection System Initialized!")
+        self.logger.info("=" * 50)
     
     def process_input(self, input_data: Union[str, bytes], input_type: str = "auto", save_result: bool = True) -> Dict[str, Any]:
         """
@@ -51,7 +53,7 @@ class FakeNewsDetector:
             if input_type == "auto":
                 input_type = self._detect_input_type(input_data)
             
-            print(f"📥 Processing {input_type} input...")
+            self.logger.info(f"Processing {input_type} input...")
             
             # Process based on type
             if input_type == "text":
@@ -71,14 +73,15 @@ class FakeNewsDetector:
                 try:
                     saved_path = self.data_manager.save_preprocessing_result(result, input_type)
                     result['saved_to'] = saved_path
-                    print(f"💾 Result saved to: {saved_path}")
+                    self.logger.info(f"Result saved to: {saved_path}")
                 except Exception as e:
-                    print(f"⚠️ Warning: Could not save result: {str(e)}")
+                    self.logger.warning(f"Could not save result: {str(e)}")
                     result['save_error'] = str(e)
             
             return result
                 
         except Exception as e:
+            self.logger.exception("Processing failed")
             return {
                 'status': 'error',
                 'error': f'Processing failed: {str(e)}'
@@ -218,8 +221,8 @@ class FakeNewsDetector:
     
     def interactive_mode(self):
         """Run interactive mode for testing"""
-        print("\n🎯 Interactive Mode - Test Your Inputs!")
-        print("=" * 50)
+        self.logger.info("Interactive Mode - Test Your Inputs!")
+        self.logger.info("=" * 50)
         
         while True:
             print("\nChoose input type:")
@@ -240,7 +243,7 @@ class FakeNewsDetector:
                     result = self.process_input(text, "text")
                     self._display_result(result)
                 else:
-                    print("❌ No text entered!")
+                    self.logger.warning("No text entered")
             
             elif choice == "2":
                 image_path = input("Enter image file path: ").strip()
@@ -248,7 +251,7 @@ class FakeNewsDetector:
                     result = self.process_input(image_path, "image")
                     self._display_result(result)
                 else:
-                    print("❌ No image path entered!")
+                    self.logger.warning("No image path entered")
             
             elif choice == "3":
                 url = input("Enter URL to analyze: ").strip()
@@ -256,7 +259,7 @@ class FakeNewsDetector:
                     result = self.process_input(url, "url")
                     self._display_result(result)
                 else:
-                    print("❌ No URL entered!")
+                    self.logger.warning("No URL entered")
             
             elif choice == "4":
                 status = self.get_system_status()
@@ -272,44 +275,44 @@ class FakeNewsDetector:
                 self._export_results_interactive()
             
             elif choice == "8":
-                print("👋 Goodbye!")
+                self.logger.info("Goodbye!")
                 break
             
             else:
-                print("❌ Invalid choice! Please enter 1-8.")
+                self.logger.warning("Invalid choice. Please enter 1-8.")
     
     def _display_result(self, result: Dict[str, Any]):
         """Display processing results in a formatted way"""
         print("\n" + "=" * 50)
-        print("📊 PROCESSING RESULT")
+        print("PROCESSING RESULT")
         print("=" * 50)
         
         if result.get('status') == 'success':
-            print("✅ Status: Success")
+            print("Status: Success")
             
             if 'input_type' in result:
-                print(f"📝 Input Type: {result['input_type']}")
+                print(f"Input Type: {result['input_type']}")
             
             if 'cleaned_text' in result:
-                print(f"📄 Cleaned Text: {result['cleaned_text'][:200]}...")
+                print(f"Cleaned Text: {result['cleaned_text'][:200]}...")
             
             if 'extracted_text' in result:
                 text_data = result['extracted_text']
                 if isinstance(text_data, dict) and text_data.get('text'):
-                    print(f"🖼️ Extracted Text: {text_data['text'][:200]}...")
+                    print(f"Extracted Text: {text_data['text'][:200]}...")
             
             if 'extracted_content' in result:
                 content = result['extracted_content']
                 if isinstance(content, dict):
                     if 'title' in content:
-                        print(f"📰 Title: {content['title']}")
+                        print(f"Title: {content['title']}")
                     if 'main_content' in content:
-                        print(f"📄 Content: {content['main_content'][:200]}...")
+                        print(f"Content: {content['main_content'][:200]}...")
             
             # Display features if available
             if 'data' in result and 'features' in result['data']:
                 features = result['data']['features']
-                print(f"\n🔍 Extracted Features ({len(features)} total):")
+                print(f"\nExtracted Features ({len(features)} total):")
                 for key, value in list(features.items())[:10]:  # Show first 10 features
                     print(f"   {key}: {value}")
                 if len(features) > 10:
@@ -318,22 +321,22 @@ class FakeNewsDetector:
             # Display preprocessing summary if available
             if 'summary' in result:
                 summary = result['summary']
-                print(f"\n📊 Preprocessing Summary:")
+                print(f"\nPreprocessing Summary:")
                 print(f"   Features extracted: {summary.get('total_features_extracted', 0)}")
                 print(f"   Cleaning steps: {summary.get('cleaning_steps_applied', 0)}")
                 print(f"   Final word count: {summary.get('final_word_count', 0)}")
                 print(f"   Processing successful: {summary.get('processing_successful', False)}")
             
         else:
-            print("❌ Status: Error")
+            print("Status: Error")
             if 'error' in result:
-                print(f"🚨 Error: {result['error']}")
+                print(f"Error: {result['error']}")
         
         print("=" * 50)
     
     def _list_saved_results_interactive(self):
         """Interactive method to list saved results"""
-        print("\n📂 Saved Results:")
+        print("\nSaved Results:")
         print("=" * 30)
         
         # Ask for filter
@@ -359,25 +362,25 @@ class FakeNewsDetector:
     
     def _load_saved_result_interactive(self):
         """Interactive method to load a saved result"""
-        print("\n📂 Load Saved Result:")
+        print("\nLoad Saved Result:")
         print("=" * 30)
         
         file_path = input("Enter the full path to the JSON file: ").strip()
         
         if not file_path:
-            print("❌ No file path provided!")
+            self.logger.warning("No file path provided")
             return
         
         try:
             result = self.load_saved_result(file_path)
-            print("✅ Result loaded successfully!")
+            self.logger.info("Result loaded successfully")
             self._display_result(result)
         except Exception as e:
-            print(f"❌ Error loading result: {str(e)}")
+            self.logger.exception(f"Error loading result: {str(e)}")
     
     def _export_results_interactive(self):
         """Interactive method to export results to CSV"""
-        print("\n📊 Export Results to CSV:")
+        print("\nExport Results to CSV:")
         print("=" * 30)
         
         output_file = input("Enter output CSV file path (or press Enter for default): ").strip()
@@ -387,9 +390,9 @@ class FakeNewsDetector:
         
         try:
             csv_path = self.export_results_to_csv(output_file)
-            print(f"✅ Results exported successfully to: {csv_path}")
+            self.logger.info(f"Results exported successfully to: {csv_path}")
         except Exception as e:
-            print(f"❌ Error exporting results: {str(e)}")
+            self.logger.exception(f"Error exporting results: {str(e)}")
 
 def main():
     """Main function to run the fake news detection system"""
@@ -403,7 +406,7 @@ def main():
             input_data = sys.argv[1]
             input_type = sys.argv[2] if len(sys.argv) > 2 else "auto"
             
-            print(f"🔍 Processing: {input_data}")
+            detector.logger.info(f"Processing: {input_data}")
             result = detector.process_input(input_data, input_type)
             detector._display_result(result)
             
@@ -412,9 +415,11 @@ def main():
             detector.interactive_mode()
             
     except KeyboardInterrupt:
-        print("\n\n👋 System interrupted by user. Goodbye!")
+        from utils.logger import get_logger
+        get_logger(__name__).info("System interrupted by user. Goodbye!")
     except Exception as e:
-        print(f"\n💥 Unexpected error: {str(e)}")
+        from utils.logger import get_logger
+        get_logger(__name__).exception(f"Unexpected error: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

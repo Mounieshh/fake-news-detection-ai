@@ -8,6 +8,8 @@ class ImageHandler:
     """Handles image input processing for fake news detection"""
     
     def __init__(self):
+        from utils.logger import get_logger
+        self.logger = get_logger(__name__)
         self.supported_formats = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
         self.max_image_size = 10 * 1024 * 1024  # 10MB max
         self.ocr_available = False
@@ -17,8 +19,15 @@ class ImageHandler:
             import pytesseract
             self.ocr_available = True
             self.pytesseract = pytesseract
+            # Configure tesseract path: env override, else default Windows path
+            tesseract_cmd = os.environ.get('TESSERACT_CMD', r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe")
+            if os.path.exists(tesseract_cmd):
+                self.pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+                self.logger.info(f"Using Tesseract at: {tesseract_cmd}")
+            else:
+                self.logger.warning(f"Tesseract not found at '{tesseract_cmd}'. Install it or set TESSERACT_CMD.")
         except ImportError:
-            print("Note: pytesseract not available. Install with: pip install pytesseract")
+            self.logger.warning("pytesseract not available. Install with: pip install pytesseract")
     
     def process_image_input(self, image_path: str) -> Dict[str, Any]:
         """

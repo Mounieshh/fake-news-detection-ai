@@ -14,6 +14,8 @@ class FeatureExtractor:
     
     def __init__(self):
         """Initialize feature extractor"""
+        from utils.logger import get_logger
+        self.logger = get_logger(__name__)
         self.nltk_available = False
         self.spacy_available = False
         self.spacy_model = None
@@ -70,45 +72,55 @@ class FeatureExtractor:
             import nltk
             self.nltk_available = True
             
-            # Download required NLTK data
+            # Download required NLTK data with better error handling
+            required_data = [
+                ('tokenizers/punkt', 'punkt'),
+                ('taggers/averaged_perceptron_tagger', 'averaged_perceptron_tagger'),
+                ('corpora/wordnet', 'wordnet'),
+                ('tokenizers/punkt_tab', 'punkt_tab')
+            ]
+            
+            for data_path, package_name in required_data:
+                try:
+                    nltk.data.find(data_path)
+                except LookupError:
+                    try:
+                        self.logger.info(f"Downloading NLTK {package_name}...")
+                        nltk.download(package_name, quiet=True)
+                    except Exception as download_error:
+                        self.logger.warning(f"Failed to download {package_name}: {download_error}")
+                        continue
+            
+            # Import NLTK components with error handling
             try:
-                nltk.data.find('tokenizers/punkt')
-            except LookupError:
-                nltk.download('punkt', quiet=True)
-            
-            try:
-                nltk.data.find('taggers/averaged_perceptron_tagger')
-            except LookupError:
-                nltk.download('averaged_perceptron_tagger', quiet=True)
-            
-            try:
-                nltk.data.find('corpora/wordnet')
-            except LookupError:
-                nltk.download('wordnet', quiet=True)
-            
-            from nltk.tokenize import word_tokenize, sent_tokenize
-            from nltk.tag import pos_tag
-            from nltk.corpus import wordnet
-            
-            self.word_tokenize = word_tokenize
-            self.sent_tokenize = sent_tokenize
-            self.pos_tag = pos_tag
-            self.wordnet = wordnet
+                from nltk.tokenize import word_tokenize, sent_tokenize
+                from nltk.tag import pos_tag
+                from nltk.corpus import wordnet
+                
+                self.word_tokenize = word_tokenize
+                self.sent_tokenize = sent_tokenize
+                self.pos_tag = pos_tag
+                self.wordnet = wordnet
+                
+                self.logger.info("NLTK initialized successfully")
+                
+            except ImportError as import_error:
+                self.logger.warning(f"Failed to import NLTK components: {import_error}")
+                self._set_nltk_fallbacks()
             
         except ImportError:
-            print("⚠️ NLTK not available for feature extraction")
-            # Set fallback methods
-            self.word_tokenize = None
-            self.sent_tokenize = None
-            self.pos_tag = None
-            self.wordnet = None
+            self.logger.warning("NLTK not available for feature extraction")
+            self._set_nltk_fallbacks()
         except Exception as e:
-            print(f"⚠️ NLTK initialization error: {e}")
-            # Set fallback methods
-            self.word_tokenize = None
-            self.sent_tokenize = None
-            self.pos_tag = None
-            self.wordnet = None
+            self.logger.warning(f"NLTK initialization error: {e}")
+            self._set_nltk_fallbacks()
+    
+    def _set_nltk_fallbacks(self):
+        """Set fallback methods when NLTK is not available"""
+        self.word_tokenize = None
+        self.sent_tokenize = None
+        self.pos_tag = None
+        self.wordnet = None
     
     def _init_spacy(self):
         """Initialize spaCy components"""
@@ -122,9 +134,9 @@ class FeatureExtractor:
                 self.spacy_model = spacy.blank("en")
                 
         except ImportError:
-            print("⚠️ spaCy not available for feature extraction")
+            self.logger.warning("spaCy not available for feature extraction")
         except Exception as e:
-            print(f"⚠️ spaCy initialization error: {e}")
+            self.logger.warning(f"spaCy initialization error: {e}")
     
     def extract_all_features(self, text: str, cleaned_text: str = None) -> Dict[str, Any]:
         """
@@ -350,7 +362,7 @@ class FeatureExtractor:
                 'total_pos_tags': len(pos_tags)
             }
         except Exception as e:
-            print(f"Error in POS tagging: {e}")
+            self.logger.warning(f"Error in POS tagging: {e}")
             return {}
     
     def _extract_ner_features(self, text: str) -> Dict[str, Any]:
@@ -376,7 +388,7 @@ class FeatureExtractor:
                 'entity_density': len(doc.ents) / max(len(text.split()), 1)
             }
         except Exception as e:
-            print(f"Error in NER: {e}")
+            self.logger.warning(f"Error in NER: {e}")
             return {}
     
     def _extract_url_features(self, text: str) -> Dict[str, Any]:
