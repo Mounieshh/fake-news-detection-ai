@@ -17,6 +17,7 @@ from input_handlers.image_handler import ImageHandler
 from input_handlers.url_handler import URLHandler
 from preprocessing.preprocessing_pipeline import PreprocessingPipeline
 from data_manager import DataManager
+from huggingface_predictor import HuggingFacePredictor
 
 
 
@@ -32,6 +33,7 @@ class FakeNewsDetector:
         self.url_handler = URLHandler()
         self.preprocessing_pipeline = PreprocessingPipeline()
         self.data_manager = DataManager(data_dir)
+        self.hf_predictor = HuggingFacePredictor()
         
         self.logger.info("Fake News Detection System Initialized!")
         self.logger.info("=" * 50)
@@ -111,7 +113,7 @@ class FakeNewsDetector:
         return "text"
     
     def _process_text_input(self, input_data: str) -> Dict[str, Any]:
-        """Process text input with preprocessing pipeline"""
+        """Process text input with preprocessing pipeline and HuggingFace prediction"""
         # Check if it's a file path
         if os.path.exists(input_data):
             # Use preprocessing pipeline for file processing
@@ -124,7 +126,67 @@ class FakeNewsDetector:
         result['processed_at'] = datetime.now().isoformat()
         result['processor'] = 'PreprocessingPipeline'
         
+        # Run HuggingFace prediction if preprocessing was successful
+        if result.get('status') == 'success':
+            # Extract text for prediction
+            text_for_prediction = self._extract_text_for_prediction(result)
+            
+            if text_for_prediction:
+                self.logger.info("Running HuggingFace fake news prediction...")
+                prediction_result = self.hf_predictor.predict(text_for_prediction)
+                result['huggingface_prediction'] = prediction_result
+                
+                # Log the prediction result
+                if prediction_result.get('status') == 'success':
+                    pred_data = prediction_result.get('prediction', {})
+                    label = pred_data.get('label', 'UNKNOWN')
+                    score = pred_data.get('score', 0.0)
+                    confidence = pred_data.get('confidence', 0.0)
+                    
+                    self.logger.info(f"Fake News Prediction - Label: {label}, Score: {score:.4f}, Confidence: {confidence:.2f}%")
+                else:
+                    self.logger.warning(f"Prediction failed: {prediction_result.get('error', 'Unknown error')}")
+            else:
+                self.logger.warning("No text available for prediction")
+                result['huggingface_prediction'] = {
+                    'status': 'error',
+                    'error': 'No text available for prediction'
+                }
+        
         return result
+    
+    def _extract_text_for_prediction(self, result: Dict[str, Any]) -> str:
+        """
+        Extract text from preprocessing result for HuggingFace prediction
+        
+        Args:
+            result (Dict[str, Any]): Preprocessing result
+            
+        Returns:
+            str: Text to use for prediction
+        """
+        # Try to get cleaned text first, then original text
+        data = result.get('data', {})
+        
+        # Try cleaned text first (preferred)
+        if 'cleaned_text' in data and data['cleaned_text']:
+            return data['cleaned_text']
+        
+        # Fall back to original text
+        if 'original_text' in data and data['original_text']:
+            return data['original_text']
+        
+        # Try other text fields
+        text_fields = ['extracted_text', 'text', 'content']
+        for field in text_fields:
+            if field in data and data[field]:
+                text = data[field]
+                if isinstance(text, str):
+                    return text
+                elif isinstance(text, dict) and 'text' in text:
+                    return text['text']
+        
+        return ""
     
     def _process_image_input(self, input_data: Union[str, bytes]) -> Dict[str, Any]:
         """Process image input"""
@@ -326,6 +388,34 @@ class FakeNewsDetector:
                 print(f"   Cleaning steps: {summary.get('cleaning_steps_applied', 0)}")
                 print(f"   Final word count: {summary.get('final_word_count', 0)}")
                 print(f"   Processing successful: {summary.get('processing_successful', False)}")
+            
+            # Display HuggingFace prediction results if available
+            if 'huggingface_prediction' in result:
+                hf_pred = result['huggingface_prediction']
+                print(f"\nFAKE NEWS PREDICTION:")
+                print("=" * 30)
+                
+                if hf_pred.get('status') == 'success':
+                    pred_data = hf_pred.get('prediction', {})
+                    label = pred_data.get('label', 'UNKNOWN')
+                    score = pred_data.get('score', 0.0)
+                    confidence = pred_data.get('confidence', 0.0)
+                    
+                    print(f"   Label: {label}")
+                    print(f"   Score: {score:.4f}")
+                    print(f"   Confidence: {confidence:.2f}%")
+                    print(f"   Model: {hf_pred.get('model_name', 'Unknown')}")
+                    
+                    # Add interpretation
+                    if 'FAKE' in label.upper() or 'FALSE' in label.upper():
+                        print(f"  This content appears to be FAKE NEWS")
+                    elif 'REAL' in label.upper() or 'TRUE' in label.upper():
+                        print(f"   This content appears to be REAL NEWS")
+                    else:
+                        print(f"   Prediction result unclear")
+                else:
+                    print(f" Prediction failed: {hf_pred.get('error', 'Unknown error')}")
+                print("=" * 30)
             
         else:
             print("Status: Error")
