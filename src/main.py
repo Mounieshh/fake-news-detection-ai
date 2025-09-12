@@ -17,15 +17,21 @@ from input_handlers.image_handler import ImageHandler
 from input_handlers.url_handler import URLHandler
 from preprocessing.preprocessing_pipeline import PreprocessingPipeline
 from data_manager import DataManager
-from huggingface_predictor import HuggingFacePredictor
+from hybrid_predictor import HybridPredictor
 
 
 
 class FakeNewsDetector:
     """Main class for fake news detection system"""
     
-    def __init__(self, data_dir: str = "data"):
-        """Initialize the fake news detection system"""
+    def __init__(self, data_dir: str = "data", model_path: str = None):
+        """
+        Initialize the fake news detection system
+        
+        Args:
+            data_dir (str): Directory for storing processed data
+            model_path (str, optional): Path to saved feature-based model
+        """
         from utils.logger import get_logger
         self.logger = get_logger(__name__)
         self.text_handler = TextHandler()
@@ -33,7 +39,7 @@ class FakeNewsDetector:
         self.url_handler = URLHandler()
         self.preprocessing_pipeline = PreprocessingPipeline()
         self.data_manager = DataManager(data_dir)
-        self.hf_predictor = HuggingFacePredictor()
+        self.predictor = HybridPredictor(model_path)
         
         self.logger.info("Fake News Detection System Initialized!")
         self.logger.info("=" * 50)
@@ -126,15 +132,15 @@ class FakeNewsDetector:
         result['processed_at'] = datetime.now().isoformat()
         result['processor'] = 'PreprocessingPipeline'
         
-        # Run HuggingFace prediction if preprocessing was successful
+        # Run hybrid prediction if preprocessing was successful
         if result.get('status') == 'success':
             # Extract text for prediction
             text_for_prediction = self._extract_text_for_prediction(result)
             
             if text_for_prediction:
-                self.logger.info("Running HuggingFace fake news prediction...")
-                prediction_result = self.hf_predictor.predict(text_for_prediction)
-                result['huggingface_prediction'] = prediction_result
+                self.logger.info("Running hybrid fake news prediction...")
+                prediction_result = self.predictor.predict(text_for_prediction)
+                result['prediction'] = prediction_result
                 
                 # Log the prediction result
                 if prediction_result.get('status') == 'success':
@@ -142,13 +148,17 @@ class FakeNewsDetector:
                     label = pred_data.get('label', 'UNKNOWN')
                     score = pred_data.get('score', 0.0)
                     confidence = pred_data.get('confidence', 0.0)
+                    bert_score = pred_data.get('bert_score', 0.0)
+                    feature_score = pred_data.get('feature_score', 0.0)
                     
-                    self.logger.info(f"Fake News Prediction - Label: {label}, Score: {score:.4f}, Confidence: {confidence:.2f}%")
+                    self.logger.info(f"Fake News Prediction - Label: {label}, Combined Score: {score:.4f}")
+                    self.logger.info(f"BERT Score: {bert_score:.4f}, Feature Score: {feature_score:.4f}")
+                    self.logger.info(f"Confidence: {confidence:.2f}%")
                 else:
                     self.logger.warning(f"Prediction failed: {prediction_result.get('error', 'Unknown error')}")
             else:
                 self.logger.warning("No text available for prediction")
-                result['huggingface_prediction'] = {
+                result['prediction'] = {
                     'status': 'error',
                     'error': 'No text available for prediction'
                 }

@@ -11,7 +11,7 @@ from transformers import pipeline
 class HuggingFacePredictor:
     """Handles HuggingFace model loading and prediction for fake news detection"""
     
-    def __init__(self, model_name: str = "Pulk17/Fake-News-Detection"):
+    def __init__(self, model_name: str = "dhruvpal/fake-news-bert"):
         """
         Initialize the HuggingFace predictor
         
