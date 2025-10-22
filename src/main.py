@@ -18,7 +18,8 @@ from input_handlers.url_handler import URLHandler
 from preprocessing.preprocessing_pipeline import PreprocessingPipeline
 from data_manager import DataManager
 from huggingface_predictor import HuggingFacePredictor
-
+from gemini_predictor import GeminiPredictor
+from flask import Flask, request, jsonify, render_template
 
 
 class FakeNewsDetector:
@@ -34,9 +35,194 @@ class FakeNewsDetector:
         self.preprocessing_pipeline = PreprocessingPipeline()
         self.data_manager = DataManager(data_dir)
         self.hf_predictor = HuggingFacePredictor()
+        self.gemini_predictor = GeminiPredictor()
+        
+        # Flask app initialization
+        self.app = Flask(__name__)
+        self.setup_routes()
         
         self.logger.info("Fake News Detection System Initialized!")
         self.logger.info("=" * 50)
+    
+    def setup_routes(self):
+        """Setup Flask routes for web API"""
+        
+        @self.app.route('/')
+        def index():
+            """Home page"""
+            return render_template('index.html')
+        
+        @self.app.route('/analyze', methods=['POST'])
+        def analyze():
+            """Handle form submissions from the web interface"""
+            try:
+                if 'text' in request.form and request.form['text'].strip():
+                    text = request.form['text']
+                    result = self.process_input(text, 'text', save_result=True)
+                elif 'url' in request.form and request.form['url'].strip():
+                    url = request.form['url']
+                    result = self.process_input(url, 'url', save_result=True)
+                elif 'image' in request.files:
+                    image = request.files['image']
+                    if image.filename:
+                        result = self.process_input(image, 'image', save_result=True)
+                    else:
+                        return jsonify({'error': 'No image file provided'}), 400
+                else:
+                    return jsonify({'error': 'No input provided'}), 400
+                
+                return jsonify(result)
+            except Exception as e:
+                self.logger.exception("Analysis failed")
+                return jsonify({'error': str(e)}), 500
+
+        @self.app.route('/status')
+        def status():
+            """Get system status"""
+            return jsonify(self.get_system_status())
+        
+        @self.app.route('/predict/text', methods=['POST'])
+        def predict_text():
+            """Analyze text input"""
+            try:
+                data = request.get_json()
+                if not data or 'text' not in data:
+                    return jsonify({'error': 'No text provided'}), 400
+                
+                text = data['text']
+                save_result = data.get('save_result', True)
+                
+                result = self.process_input(text, 'text', save_result)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception("Text prediction failed")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/predict/url', methods=['POST'])
+        def predict_url():
+            """Analyze URL input"""
+            try:
+                data = request.get_json()
+                if not data or 'url' not in data:
+                    return jsonify({'error': 'No URL provided'}), 400
+                
+                url = data['url']
+                save_result = data.get('save_result', True)
+                
+                result = self.process_input(url, 'url', save_result)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception("URL prediction failed")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/predict/image', methods=['POST'])
+        def predict_image():
+            """Analyze image input"""
+            try:
+                if 'image' not in request.files:
+                    return jsonify({'error': 'No image file provided'}), 400
+                
+                image_file = request.files['image']
+                image_bytes = image_file.read()
+                save_result = request.form.get('save_result', 'true').lower() == 'true'
+                
+                result = self.process_input(image_bytes, 'image', save_result)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception("Image prediction failed")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/predict/gemini/text', methods=['POST'])
+        def predict_gemini_text():
+            """Analyze text using Gemini AI"""
+            try:
+                data = request.get_json()
+                if not data or 'text' not in data:
+                    return jsonify({'error': 'No text provided'}), 400
+                
+                text = data['text']
+                result = self.gemini_predictor.predict_text(text)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception("Gemini text prediction failed")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/predict/gemini/image', methods=['POST'])
+        def predict_gemini_image():
+            """Analyze image using Gemini AI"""
+            try:
+                if 'image' not in request.files:
+                    return jsonify({'error': 'No image file provided'}), 400
+                
+                image_file = request.files['image']
+                image_bytes = image_file.read()
+                
+                result = self.gemini_predictor.predict_image(image_bytes)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception("Gemini image prediction failed")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/results', methods=['GET'])
+        def list_results():
+            """List all saved results"""
+            try:
+                input_type = request.args.get('type', None)
+                results = self.list_saved_results(input_type)
+                return jsonify({'results': results, 'count': len(results)})
+            
+            except Exception as e:
+                self.logger.exception("Failed to list results")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/results/<path:result_id>', methods=['GET'])
+        def get_result(result_id):
+            """Get a specific saved result"""
+            try:
+                result = self.load_saved_result(result_id)
+                return jsonify(result)
+            
+            except Exception as e:
+                self.logger.exception(f"Failed to load result: {result_id}")
+                return jsonify({'error': str(e)}), 404
+        
+        @self.app.route('/results/<path:result_id>', methods=['DELETE'])
+        def delete_result(result_id):
+            """Delete a specific saved result"""
+            try:
+                success = self.delete_saved_result(result_id)
+                if success:
+                    return jsonify({'message': 'Result deleted successfully'})
+                else:
+                    return jsonify({'error': 'Failed to delete result'}), 500
+            
+            except Exception as e:
+                self.logger.exception(f"Failed to delete result: {result_id}")
+                return jsonify({'error': str(e)}), 500
+        
+        @self.app.route('/export/csv', methods=['GET'])
+        def export_csv():
+            """Export results to CSV"""
+            try:
+                csv_path = self.export_results_to_csv()
+                return jsonify({
+                    'message': 'Results exported successfully',
+                    'file_path': csv_path
+                })
+            
+            except Exception as e:
+                self.logger.exception("Failed to export results")
+                return jsonify({'error': str(e)}), 500
+    
+    def run_server(self, host='0.0.0.0', port=5000, debug=False):
+        """Run Flask server"""
+        self.logger.info(f"Starting Flask server on {host}:{port}")
+        self.app.run(host=host, port=port, debug=debug)
     
     def process_input(self, input_data: Union[str, bytes], input_type: str = "auto", save_result: bool = True) -> Dict[str, Any]:
         """
@@ -59,26 +245,62 @@ class FakeNewsDetector:
             
             # Process based on type
             if input_type == "text":
-                result = self._process_text_input(input_data)
+                # Use Gemini predictor behind the scenes but format result like HuggingFace
+                result = self.gemini_predictor.predict_text(input_data)
+                # Format the result to match the expected structure
+                processed_result = {
+                    'prediction': result['prediction'],
+                    'probability': result['probability'],
+                    'explanation': result['explanation'],
+                    'red_flags': result.get('red_flags', []),
+                    'status': 'success'
+                }
             elif input_type == "image":
-                result = self._process_image_input(input_data)
+                if isinstance(input_data, bytes):
+                    result = self.gemini_predictor.predict_image(input_data)
+                else:
+                    # For file objects from Flask
+                    image_bytes = input_data.read()
+                    result = self.gemini_predictor.predict_image(image_bytes)
+                processed_result = {
+                    'prediction': result['prediction'],
+                    'probability': result['probability'],
+                    'explanation': result['explanation'],
+                    'red_flags': result.get('red_flags', []),
+                    'status': 'success'
+                }
             elif input_type == "url":
-                result = self._process_url_input(input_data)
+                # Process URL using URL handler and then analyze resulting text
+                url_result = self.url_handler.process_url_input(input_data)
+                if 'error' in url_result:
+                    return {
+                        'status': 'error',
+                        'error': url_result['error']
+                    }
+                text_content = url_result.get('content', '')
+                result = self.gemini_predictor.predict_text(text_content)
+                processed_result = {
+                    'prediction': result['prediction'],
+                    'probability': result['probability'],
+                    'explanation': result['explanation'],
+                    'red_flags': result.get('red_flags', []),
+                    'status': 'success'
+                }
             else:
-                result = {
+                processed_result = {
                     'status': 'error',
                     'error': f'Unsupported input type: {input_type}'
                 }
             
             # Save result if requested and processing was successful
-            if save_result and result.get('status') == 'success':
+            if save_result and processed_result['status'] == 'success':
                 try:
-                    saved_path = self.data_manager.save_preprocessing_result(result, input_type)
-                    result['saved_to'] = saved_path
+                    saved_path = self.data_manager.save_preprocessing_result(processed_result, input_type)
+                    processed_result['saved_to'] = saved_path
                     self.logger.info(f"Result saved to: {saved_path}")
                 except Exception as e:
                     self.logger.warning(f"Could not save result: {str(e)}")
-                    result['save_error'] = str(e)
+                    processed_result['save_error'] = str(e)
             
             return result
                 
@@ -295,9 +517,10 @@ class FakeNewsDetector:
             print("5. List saved results")
             print("6. Load saved result")
             print("7. Export results to CSV")
-            print("8. Exit")
+            print("8. Start Flask server")
+            print("9. Exit")
             
-            choice = input("\nEnter your choice (1-8): ").strip()
+            choice = input("\nEnter your choice (1-9): ").strip()
             
             if choice == "1":
                 text = input("Enter text to analyze: ").strip()
@@ -337,11 +560,19 @@ class FakeNewsDetector:
                 self._export_results_interactive()
             
             elif choice == "8":
+                print("\nStarting Flask server...")
+                print("Press Ctrl+C to stop the server")
+                try:
+                    self.run_server(debug=True)
+                except KeyboardInterrupt:
+                    print("\nServer stopped")
+            
+            elif choice == "9":
                 self.logger.info("Goodbye!")
                 break
             
             else:
-                self.logger.warning("Invalid choice. Please enter 1-8.")
+                self.logger.warning("Invalid choice. Please enter 1-9.")
     
     def _display_result(self, result: Dict[str, Any]):
         """Display processing results in a formatted way"""
@@ -408,13 +639,13 @@ class FakeNewsDetector:
                     
                     # Add interpretation
                     if 'FAKE' in label.upper() or 'FALSE' in label.upper():
-                        print(f"  This content appears to be FAKE NEWS")
+                        print(f"   ⚠️  This content appears to be FAKE NEWS")
                     elif 'REAL' in label.upper() or 'TRUE' in label.upper():
-                        print(f"   This content appears to be REAL NEWS")
+                        print(f"   ✓  This content appears to be REAL NEWS")
                     else:
-                        print(f"   Prediction result unclear")
+                        print(f"   ?  Prediction result unclear")
                 else:
-                    print(f" Prediction failed: {hf_pred.get('error', 'Unknown error')}")
+                    print(f"   ✗  Prediction failed: {hf_pred.get('error', 'Unknown error')}")
                 print("=" * 30)
             
         else:
@@ -484,6 +715,7 @@ class FakeNewsDetector:
         except Exception as e:
             self.logger.exception(f"Error exporting results: {str(e)}")
 
+
 def main():
     """Main function to run the fake news detection system"""
     try:
@@ -492,25 +724,31 @@ def main():
         
         # Check if command line arguments are provided
         if len(sys.argv) > 1:
-            # Command line mode
-            input_data = sys.argv[1]
-            input_type = sys.argv[2] if len(sys.argv) > 2 else "auto"
-            
-            detector.logger.info(f"Processing: {input_data}")
-            result = detector.process_input(input_data, input_type)
-            detector._display_result(result)
-            
+            if sys.argv[1] == '--server':
+                # Start Flask server
+                host = sys.argv[2] if len(sys.argv) > 2 else '0.0.0.0'
+                port = int(sys.argv[3]) if len(sys.argv) > 3 else 5000
+                detector.run_server(host=host, port=port, debug=False)
+            else:
+                # Command line mode
+                input_data = sys.argv[1]
+                input_type = sys.argv[2] if len(sys.argv) > 2 else "auto"
+                
+                detector.logger.info(f"Processing: {input_data}")
+                result = detector.process_input(input_data, input_type)
+                detector._display_result(result)
         else:
             # Interactive mode
             detector.interactive_mode()
             
     except KeyboardInterrupt:
         from utils.logger import get_logger
-        get_logger(__name__).info("System interrupted by user. Goodbye!")
+        get_logger(__name__).info("\nSystem interrupted by user. Goodbye!")
     except Exception as e:
         from utils.logger import get_logger
         get_logger(__name__).exception(f"Unexpected error: {str(e)}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
