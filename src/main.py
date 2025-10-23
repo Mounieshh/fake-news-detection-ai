@@ -272,18 +272,50 @@ class FakeNewsDetector:
             elif input_type == "url":
                 # Process URL using URL handler and then analyze resulting text
                 url_result = self.url_handler.process_url_input(input_data)
-                if 'error' in url_result:
+                if url_result.get('status') != 'success':
                     return {
                         'status': 'error',
-                        'error': url_result['error']
+                        'error': url_result.get('error', 'Failed to process URL'),
+                        'prediction': 'ERROR',
+                        'probability': 0,
+                        'explanation': f"URL processing failed: {url_result.get('error', 'Unknown error')}",
+                        'red_flags': ['URL processing error']
                     }
-                text_content = url_result.get('content', '')
-                result = self.gemini_predictor.predict_text(text_content)
+                
+                # Extract article content from HTML
+                soup = self.BeautifulSoup(url_result['html'], 'html.parser')
+                
+                # Get main content
+                article_content = ""
+                article = soup.find('article') or soup.find(class_=['article-body', 'article-content'])
+                if article:
+                    article_content = article.get_text(strip=True)
+                else:
+                    # Fallback to main content
+                    main = soup.find('main')
+                    if main:
+                        article_content = main.get_text(strip=True)
+                
+                if not article_content:
+                    return {
+                        'status': 'error',
+                        'prediction': 'ERROR',
+                        'probability': 0,
+                        'explanation': 'Could not extract article content from the URL',
+                        'red_flags': ['Content extraction failed']
+                    }
+                
+                # Add URL and title context to the analysis
+                analysis_text = f"URL: {url_result['url']}\nTitle: {url_result.get('title', '')}\n\nContent:\n{article_content}"
+                
+                result = self.gemini_predictor.predict_text(analysis_text)
                 processed_result = {
                     'prediction': result['prediction'],
                     'probability': result['probability'],
                     'explanation': result['explanation'],
                     'red_flags': result.get('red_flags', []),
+                    'source_url': url_result['url'],
+                    'title': url_result.get('title', ''),
                     'status': 'success'
                 }
             else:

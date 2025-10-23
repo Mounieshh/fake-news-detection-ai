@@ -11,6 +11,9 @@ import json
 from PIL import Image
 import requests
 from io import BytesIO
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class GeminiPredictor:
     def __init__(self):

@@ -49,6 +49,50 @@ class URLHandler:
             if content_response['status'] != 'success':
                 return content_response
             
+            # Extract text content using BeautifulSoup
+            if not self.bs4_available:
+                return {
+                    'status': 'error',
+                    'error': 'BeautifulSoup4 is required for URL processing',
+                    'input_type': 'url'
+                }
+            
+            soup = self.BeautifulSoup(content_response['html'], 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+                
+            # Extract article content (customize based on common news site structures)
+            article_content = ""
+            
+            # Try to find article content in common containers
+            article_selectors = [
+                'article',
+                '.article-body',
+                '.article-content',
+                '#article-content',
+                '.story-content',
+                '[itemprop="articleBody"]',
+                '.content-body',
+                '.story-body'
+            ]
+            
+            for selector in article_selectors:
+                content = soup.select(selector)
+                if content:
+                    article_content = ' '.join([elem.get_text(strip=True) for elem in content])
+                    break
+            
+            # If no article content found, try to get main content
+            if not article_content:
+                main_content = soup.find('main')
+                if main_content:
+                    article_content = main_content.get_text(strip=True)
+                else:
+                    # Fallback to body text
+                    article_content = soup.get_text(strip=True)
+            
             # Extract content using BeautifulSoup
             extracted_content = self._extract_content_from_html(
                 content_response['html'], 
@@ -140,10 +184,26 @@ class URLHandler:
                     'input_type': 'url'
                 }
             
+            # Extract title from meta tags or title tag
+            soup = self.BeautifulSoup(response.text, 'html.parser')
+            title = ''
+            
+            # Try to get title from meta tags
+            meta_title = soup.find('meta', property='og:title')
+            if meta_title:
+                title = meta_title.get('content', '')
+            
+            # Fallback to title tag
+            if not title:
+                title_tag = soup.find('title')
+                if title_tag:
+                    title = title_tag.string
+            
             return {
                 'status': 'success',
                 'html': response.text,
                 'url': response.url,
+                'title': title,
                 'http_status': response.status_code,
                 'content_type': content_type,
                 'fetch_time': fetch_time

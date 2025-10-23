@@ -240,16 +240,266 @@
         }
       }
 
-      footer {
-        margin-top: auto;
+      /* Navbar Styles */
+      .navbar {
+        background-color: var(--surface-color);
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .nav-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .nav-logo {
+        font-size: 1.5rem;
+      }
+
+      .nav-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+
+      .nav-link {
+        color: var(--text-color);
+        text-decoration: none;
+        padding: 0.5rem;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+
+      .nav-link:hover {
+        background-color: var(--hover-color);
+      }
+
+      .nav-link.active {
+        color: var(--primary-color);
+      }
+
+      /* Problem & Solution Section */
+      .problem-solution-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .problem-box,
+      .solution-box {
+        background-color: var(--surface-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s ease;
+      }
+
+      .problem-box:hover,
+      .solution-box:hover {
+        transform: translateY(-5px);
+      }
+
+      .problem-box h2,
+      .solution-box h2 {
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
         text-align: center;
+      }
+
+      .icon-wrapper {
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+
+      .problem-icon,
+      .solution-icon {
+        font-size: 2.5rem;
+      }
+
+      .problem-content,
+      .solution-content {
+        color: var(--text-color);
+      }
+
+      .problem-content ul,
+      .solution-content ul {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0;
+      }
+
+      .problem-content li,
+      .solution-content li {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      .problem-content li:before {
+        content: "⚡";
+        position: absolute;
+        left: 0;
+        color: #ef4444;
+      }
+
+      .solution-content li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: #22c55e;
+      }
+
+      .problem-content p,
+      .solution-content p {
+        margin-bottom: 1rem;
+        font-weight: 500;
+      }
+
+      /* Examples Section */
+      .examples-section {
+        background-color: var(--surface-color);
+        border-radius: 12px;
         padding: 2rem;
+        margin: 2rem 0;
+      }
+
+      .example-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      .example-card {
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+
+      .example-card h3 {
+        margin-bottom: 0.5rem;
+        color: var(--primary-color);
+      }
+
+      .example-source {
         color: var(--text-color);
         opacity: 0.7;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .tag.real {
+        background-color: #22c55e33;
+        color: #22c55e;
+      }
+
+      /* About Section */
+      .about-section {
+        background-color: var(--surface-color);
+        border-radius: 12px;
+        padding: 2rem;
+        margin: 2rem 0;
+      }
+
+      .tech-stack {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .tech-badge {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.9rem;
+      }
+
+      /* Enhanced Footer */
+      .enhanced-footer {
+        margin-top: auto;
+        background-color: var(--surface-color);
+        border-top: 1px solid var(--border-color);
+        padding: 2rem 0;
+      }
+
+      .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 2rem;
+      }
+
+      .footer-section h3 {
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+      }
+
+      .copyright {
+        color: var(--text-color);
+        opacity: 0.7;
+      }
+
+      .disclaimer {
+        color: var(--text-color);
+        opacity: 0.5;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
       }
     </style>
   </head>
   <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-brand">
+          <span class="nav-title">FakeNews Detector</span>
+        </div>
+        <div class="nav-links">
+          <a href="#" class="nav-link">Home</a>
+          <a
+            href="https://github.com/Mounieshh/fake-news-detection-ai"
+            target="_blank"
+            class="nav-link"
+            >GitHub</a
+          >
+        </div>
+      </div>
+    </nav>
+
     <div class="container">
       <header>
         <h1>Fake News Detector</h1>
@@ -258,6 +508,7 @@
         </p>
       </header>
 
+    
       <div class="input-section">
         <div class="input-tabs">
           <button class="tab-button active" data-tab="text">Text</button>
@@ -325,10 +576,50 @@
           <ul id="red-flags-list"></ul>
         </div>
       </div>
+      <!-- Problem & Solution Section -->
+      <section class="problem-solution-section">
+        <div class="problem-box">
+          <h2>The Problem</h2>
+          <div class="problem-content">
+            <div class="icon-wrapper">
+              <span class="problem-icon">⚠️</span>
+            </div>
+            <p>
+              The spread of fake news on social media has become a critical
+              issue in our digital age:
+            </p>
+            <ul>
+              <li>Rapid spread of misinformation across platforms</li>
+              <li>Social unrest due to false narratives</li>
+              <li>Difficulty in distinguishing fact from fiction</li>
+              <li>Impact on public opinion and decision-making</li>
+              <li>Threat to democratic processes</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="solution-box">
+          <h2>Our Solution</h2>
+          <div class="solution-content">
+            <div class="icon-wrapper">
+              <span class="solution-icon">💡</span>
+            </div>
+            <p>We've developed an AI-powered tool that:</p>
+            <ul>
+              <li>Analyzes content using advanced machine learning</li>
+              <li>Processes text, images, and URLs comprehensively</li>
+              <li>Provides real-time fact-checking and verification</li>
+              <li>Flags potential misinformation with explanations</li>
+              <li>Helps users make informed decisions about content</li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </div>
+    
 
     <footer>
-      <p>Powered by AI &middot; For educational purposes only</p>
+      <p></p>
     </footer>
 
     <script>
